@@ -23,7 +23,7 @@ Everything lives in plain markdown files in your own folder. No server, no datab
 1. Open Claude and click **Customize** in the left sidebar (in Cowork: open the Cowork tab first, then Customize).
 2. Go to the **Plugins** tab.
 3. Under **Personal plugins**, click **+** → **Add marketplace** → **Add from a repository**.
-4. Paste this repository's address: `https://github.com/<owner>/gmtd` — click Add.
+4. Paste this repository's address: `https://github.com/0nkl/gmtd` — click Add.
 5. Find **GMTD** in your plugin list and click **Install**.
 6. Start a new conversation and say: **"set up GMTD"**.
 
@@ -34,7 +34,7 @@ You need a paid Claude plan (Pro, Max, Team, or Enterprise) to use plugins.
 ### Claude Code (for developers)
 
 ```
-/plugin marketplace add <owner>/gmtd
+/plugin marketplace add 0nkl/gmtd
 /plugin install gmtd
 /gmtd-setup
 ```
