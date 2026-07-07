@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "GMTD — Get More Things Done. An AI-run productivity system inspired by David Allen's Getting Things Done®.",
-    "version": "0.1.0"
+    "version": "0.2.0"
   },
   "plugins": [
     {
       "name": "gmtd",
       "source": "./",
-      "description": "An AI-run productivity system inspired by Getting Things Done®. Capture anything, let the AI clarify and organize it, always know your next action. 5 skills: setup, inbox, now, done, review.",
-      "version": "0.1.0",
+      "description": "An AI-run productivity system inspired by Getting Things Done®. Capture anything, let the AI clarify and organize it, always know your next action. Optional Big 3 / 1-3-5 / Eat-the-Frog planning styles, focus sessions, due dates, visual dashboard. 5 skills: setup, inbox, now, done, review.",
+      "version": "0.2.0",
       "author": {
         "name": "Ivo Rappenecker"
       },
