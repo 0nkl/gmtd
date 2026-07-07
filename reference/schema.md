@@ -15,6 +15,8 @@ All in the user's GMTD folder (default `<workspace>/gmtd/`, actual paths in `con
 | `log.md` | Append-only activity journal (may point to an existing user journal) | every skill that writes, via `gmtd.py log` |
 | `inbox.md` | Optional file-capture dump; cleared after each processing | user writes, gmtd-inbox clears |
 | `state.json` | Machine state: sync timestamps, review dates | `gmtd.py state` ONLY — never hand-edit, never edit via LLM |
+| `backups/` | Automatic tasks.md snapshots (last 10) | `gmtd.py backup` — run before every batch write |
+| `dashboard.html` | Visual dashboard (harnesses without artifacts) | gmtd-now, from the plugin dashboard template |
 
 ## tasks.md structure
 
@@ -45,7 +47,8 @@ Sections, in order (all H2):
 - `→ next step:` is REQUIRED for any task with time ≥ 30min. Must be doable in 2–5 min.
 - `(← Project Name)` links a task to its project.
 - `↳` lines are time logs (optional per config).
-- Optional markers: `[🤖]` = AI-delegable (Claude can do or draft this autonomously — say "do [task]"); `[defer:YYYY-MM-DD]` (Scheduled only); `[src:<tracker>:<id>]` = imported from a project tracker (used for de-duplication; keep on the line); `[NEXT]` = a project's current next action.
+- Optional markers: `[🤖]` = AI-delegable (Claude can do or draft this autonomously — say "do [task]"); `[defer:YYYY-MM-DD]` (Scheduled only) = don't show before this date; `[due:YYYY-MM-DD]` (any active bucket) = hard deadline — overdue/due-today items outrank everything in "what's next" and appear in the briefing; `[src:<tracker>:<id>]` = imported from a project tracker (used for de-duplication; keep on the line); `[NEXT]` = a project's current next action.
+- `defer` vs `due`: defer answers "when should this start appearing?", due answers "when must this be finished?". A task may carry both. Only real deadlines get `[due:]` — never use it for aspirational dates (that's what priority is for).
 - Done: `- [x] Task ✓ (YYYY-MM-DD) — optional outcome note`. Dropped/superseded: `- [~] Task — reason`.
 
 ## Priority guide
@@ -110,3 +113,8 @@ H2 sections chosen at setup (defaults: 📚 Books to Read, 🎬 Videos to Watch,
 4. Every open task has time, energy, priority, and added tags.
 5. No `[defer:]` date in the past (expired defers must move to Next).
 6. No Waiting item past follow-up without a flag.
+7. No `[due:]` date in the past (overdue items must be done, rescheduled with the user, or dropped — never silently left overdue).
+
+## Write safety
+
+Before any batch write to tasks.md (inbox batch filing, review close, migration), run `gmtd.py backup` first. Single-task edits (one completion, one capture) don't need it.

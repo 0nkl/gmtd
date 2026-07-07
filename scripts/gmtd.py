@@ -13,7 +13,7 @@ Usage:
 Commands:
   parse                      Dump all tasks as JSON
   query [--time N] [--energy low|medium|high] [--bucket B] [--priority P]
-                             Filtered candidate list (JSON)
+                             Filtered candidate list (JSON; overdue/due-today rank first)
   validate                   Invariant report (JSON; exit 1 if violations)
   stale                      Items past their bucket's stale threshold (JSON)
   state get <key> | set <key> <value> | all
@@ -22,14 +22,18 @@ Commands:
   stats [--days N]           Done counts + time logged per project (default 7 days)
   log --op OP --subject S [--bullet B ...] [--file PATH]
                              Append a journal entry (default: <dir>/log.md)
+  backup                     Snapshot tasks.md to <dir>/backups/ (keeps the last 10)
 """
 
 import argparse
 import json
 import re
+import shutil
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+
+VERSION = "0.2.0"
 
 # ---------------------------------------------------------------- constants
 
@@ -51,7 +55,7 @@ ENERGY_ORDER = ["low", "medium", "high"]
 PRIORITY_MAP = {"\U0001F534": "critical", "\U0001F7E1": "important", "\U0001F7E2": "whenever"}
 PRIORITY_RANK = {"critical": 0, "important": 1, "whenever": 2, None: 3}
 
-TAG_RE = re.compile(r"\[(time|energy|priority|added|defer|since|follow-up|src):([^\]\s][^\]]*)\]")
+TAG_RE = re.compile(r"\[(time|energy|priority|added|defer|due|since|follow-up|src):([^\]\s][^\]]*)\]")
 TASK_RE = re.compile(r"^(\s*)- \[([ x~])\]\s*(.*)$")
 HEADER_RE = re.compile(r"^(#{2,3})\s+(.*)$")
 PROJECT_LINK_RE = re.compile(r"\(←\s*([^)]+)\)")
@@ -110,8 +114,10 @@ def parse_tasks(path):
                 continue
 
         if current_bucket == "resume":
-            if line.strip() and not line.strip().startswith(("---", "*")):
-                resume_here.append(line.strip())
+            s = line.strip()
+            # keep **bold** content lines; skip rules and *italic* template comments
+            if s and not s.startswith("---") and not (s.startswith("*") and not s.startswith("**")):
+                resume_here.append(s)
             continue
 
         if current_project and line.strip().lower().startswith("goal:"):
@@ -150,6 +156,7 @@ def parse_tasks(path):
                 "priority": prio,
                 "added": tags.get("added"),
                 "defer": tags.get("defer"),
+                "due": tags.get("due"),
                 "since": tags.get("since"),
                 "follow_up": tags.get("follow-up"),
                 "src": tags.get("src"),
@@ -223,8 +230,11 @@ def cmd_query(data, args, today):
         if args.priority and t["priority"] != args.priority:
             continue
         out.append(t)
-    out.sort(key=lambda t: (0 if t["bucket"] == "focus" else 1,
+    # Overdue / due-today beats everything; then Focus, priority, earliest due, oldest added.
+    out.sort(key=lambda t: (0 if (t.get("due") and t["due"] <= today) else 1,
+                            0 if t["bucket"] == "focus" else 1,
                             PRIORITY_RANK.get(t["priority"], 3),
+                            t.get("due") or "9999",
                             t["added"] or "9999"))
     return out
 
@@ -260,6 +270,8 @@ def cmd_validate(data, config, today):
             v.append({"rule": "defer_expired", "detail": f"Defer date passed, move to Next: {t['description']}"})
         if t["bucket"] == "waiting" and t.get("follow_up") and t["follow_up"] < today:
             v.append({"rule": "waiting_overdue", "detail": f"Follow-up overdue: {t['description']}"})
+        if t.get("due") and t["due"] < today:
+            v.append({"rule": "due_overdue", "detail": f"Due date passed ({t['due']}): {t['description']}", "line": t["line"]})
     return v
 
 
@@ -296,11 +308,13 @@ def cmd_stats(data, days, today_dt):
     cutoff = (today_dt - timedelta(days=days)).strftime("%Y-%m-%d")
     done = [t for t in data["tasks"] if t["status"] == "done"]
     done_recent = []
+    seen = set()  # a done task may sit in both its project and Done (recent) — count once
     for t in done:
         m = re.search(r"\((\d{4}-\d{2}-\d{2})\)", t["description"]) or (
             re.search(r"✓\s*\((\d{4}-\d{2}-\d{2})\)", t["description"]))
         d = m.group(1) if m else None
-        if d and d >= cutoff:
+        if d and d >= cutoff and (t["description"], d) not in seen:
+            seen.add((t["description"], d))
             done_recent.append({"description": t["description"], "date": d, "project": t["project"]})
     time_per_project = {}
     for t in data["tasks"]:
@@ -340,6 +354,22 @@ def cmd_state(d, args):
         return {args.key: args.value, "written": True}
 
 
+def cmd_backup(d, tasks_file, keep=10):
+    if not tasks_file.exists():
+        return {"error": f"tasks file not found: {tasks_file}"}
+    bdir = d / "backups"
+    bdir.mkdir(exist_ok=True)
+    stamp = datetime.now().strftime("%Y-%m-%d-%H%M%S")
+    dest = bdir / f"tasks-{stamp}.md"
+    shutil.copy2(tasks_file, dest)
+    existing = sorted(bdir.glob("tasks-*.md"))
+    pruned = []
+    for old in existing[:-keep]:
+        old.unlink()
+        pruned.append(old.name)
+    return {"backup": str(dest), "kept": min(len(existing), keep), "pruned": pruned}
+
+
 def cmd_log(args, default_dir):
     path = Path(args.file) if args.file else default_dir / "log.md"
     date = datetime.now().strftime("%Y-%m-%d")
@@ -369,7 +399,15 @@ def load_config(d):
 # ---------------------------------------------------------------- main
 
 def main():
+    # Emoji-heavy JSON must survive Windows consoles (cp1252 chokes on 🔴 etc.).
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(encoding="utf-8")
+        except (AttributeError, ValueError):
+            pass
+
     ap = argparse.ArgumentParser(description="GMTD deterministic helper")
+    ap.add_argument("--version", action="version", version=f"gmtd.py {VERSION}")
     ap.add_argument("--dir", required=True, help="User GMTD folder (contains tasks.md, state.json…)")
     ap.add_argument("--tasks", help="Override tasks.md path")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -382,6 +420,8 @@ def main():
     q.add_argument("--priority", choices=["critical", "important", "whenever"])
     sub.add_parser("validate")
     sub.add_parser("stale")
+    bk = sub.add_parser("backup")
+    bk.add_argument("--keep", type=int, default=10, help="Backups to retain (default 10)")
     st = sub.add_parser("state")
     st.add_argument("action", choices=["get", "set", "all"])
     st.add_argument("key", nargs="?")
@@ -422,6 +462,12 @@ def main():
         return
 
     tasks_file = Path(args.tasks) if args.tasks else d / "tasks.md"
+
+    if args.cmd == "backup":
+        result = cmd_backup(d, tasks_file, keep=args.keep)
+        print(json.dumps(result, indent=2))
+        sys.exit(2 if "error" in result else 0)
+
     if not tasks_file.exists():
         print(json.dumps({"error": f"tasks file not found: {tasks_file}"}))
         sys.exit(2)

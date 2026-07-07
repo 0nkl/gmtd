@@ -4,6 +4,7 @@ Used by gmtd-now (and the dashboard). Candidates come from `gmtd.py query`; thes
 
 ## Selection order
 
+0. **Deadlines beat everything.** Anything overdue or due today that fits the time + energy is the recommendation — `gmtd.py query` already ranks these first. If an overdue item does NOT fit the current time/energy, still mention it in one line ("heads up: X is overdue") before recommending something else.
 1. **Focus first.** If any Focus item fits the time + energy, recommend it.
 2. **Then Next**, filtered by time + energy.
 3. **Tiebreak 1: priority** — 🔴 > 🟡 > 🟢.
@@ -38,3 +39,7 @@ Used by gmtd-now (and the dashboard). Candidates come from `gmtd.py query`; thes
 ## Output contract (gmtd-now "what's next")
 
 ONE recommendation, 5–8 lines: task, one-sentence why (cite goals.md or urgency), first step, time + energy tags. Alternatives only if the user asks "what else?". If the pick is stale (per schema thresholds), add one gentle line asking if it's still the right priority.
+
+## Daily plans and briefings
+
+The briefing and the "plan my day" mode shape their output by the user's `daily_shape` config (gtd | big3 | 1-3-5 | frog) — see `frameworks.md` for what each shape means and how to build it from the same candidate pool.
