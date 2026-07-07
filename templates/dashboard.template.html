@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GMTD Dashboard</title>
+<!--
+  GMTD dashboard template. Self-contained: no external resources.
+
+  To render: replace the single line
+      const GMTD_DATA = /*GMTD_DATA*/null;
+  with real data. Expected shape (built from gmtd.py parse/stale/stats/validate + config + goals):
+
+  {
+    "generated":          "2026-07-06T09:00:00",          // ISO timestamp of this render
+    "user":               "Sam",
+    "current_number_one": "Land two retainer clients",     // goals.md Current #1 (or null)
+    "focus_max":          5,
+    "resume_here":        ["**Last session (2026-07-05):** ...", "**Next:** ..."],
+    "tasks":              [ ...tasks array from `gmtd.py parse`... ],
+    "projects":           [ ...projects array from `gmtd.py parse`... ],
+    "stale":              [ ...array from `gmtd.py stale`... ],
+    "violations":         [ ...violations array from `gmtd.py validate`... ],
+    "stats":              { ...object from `gmtd.py stats`... },
+    "lists_summary":      [ {"section": "📚 Books to Read", "count": 4}, ... ]
+  }
+
+  Buttons use sendPrompt() when available (Claude artifact); they hide themselves
+  automatically when the file is opened directly in a browser.
+-->
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --ink: #1a1d21; --muted: #6b7280;
+    --line: #e5e7eb; --accent: #4f46e5; --red: #dc2626; --amber: #d97706;
+    --green: #059669; --chip: #eef0f4; --chip-on: #4f46e5;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); font: 15px/1.5 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; padding: 20px; }
+  .wrap { max-width: 1080px; margin: 0 auto; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+  header h1 { font-size: 22px; }
+  header .date { color: var(--muted); }
+  .lens { color: var(--muted); margin-bottom: 14px; }
+  .lens b { color: var(--ink); }
+  .banner { background: #fef2f2; border: 1px solid #fecaca; color: var(--red); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 18px; }
+  .actions button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 8px 14px; font-size: 14px; cursor: pointer; }
+  .actions button:hover { opacity: .9; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .card.full { grid-column: 1 / -1; }
+  .card h2 { font-size: 15px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+  .card h2 .count { color: var(--muted); font-weight: normal; font-size: 13px; }
+  ul.tasks { list-style: none; }
+  ul.tasks li { padding: 6px 0; border-top: 1px solid var(--line); }
+  ul.tasks li:first-child { border-top: 0; }
+  .desc { display: block; }
+  .meta { color: var(--muted); font-size: 12.5px; }
+  .meta .due { color: var(--red); font-weight: 600; }
+  .meta .duesoon { color: var(--amber); font-weight: 600; }
+  .tag { display: inline-block; background: var(--chip); border-radius: 6px; padding: 0 6px; margin-right: 4px; font-size: 12px; }
+  .overdue { background: #fff7ed; margin: 0 -8px; padding-left: 8px !important; padding-right: 8px; border-radius: 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 10px; }
+  .chips span { color: var(--muted); font-size: 13px; margin-right: 2px; }
+  .chip { background: var(--chip); border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; font-size: 13px; cursor: pointer; user-select: none; }
+  .chip.on { background: var(--chip-on); border-color: var(--chip-on); color: #fff; }
+  details { margin-top: 6px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 14px; padding: 4px 0; }
+  .stats { display: flex; flex-wrap: wrap; gap: 18px; }
+  .stat b { font-size: 20px; display: block; }
+  .stat span { color: var(--muted); font-size: 12.5px; }
+  .empty { color: var(--muted); font-style: italic; padding: 4px 0; }
+  .resume p { margin: 2px 0; }
+  footer { color: var(--muted); font-size: 12.5px; margin-top: 18px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"></div>
+<script>
+const GMTD_DATA = /*GMTD_DATA*/null;
+
+(function () {
+  const app = document.getElementById("app");
+  if (!GMTD_DATA) {
+    app.innerHTML = '<div class="card">No data injected — this is the raw GMTD template. Ask your assistant to "show my dashboard".</div>';
+    return;
+  }
+  const D = GMTD_DATA;
+  const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const md = s => esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  const today = new Date().toISOString().slice(0, 10);
+  const soon = new Date(Date.now() + 2 * 864e5).toISOString().slice(0, 10);
+  const open = D.tasks.filter(t => t.status === "open");
+  const by = b => open.filter(t => t.bucket === b);
+  const PRIO = { critical: "🔴", important: "🟡", whenever: "🟢" };
+
+  function taskLine(t, showBucket) {
+    let m = [];
+    if (t.priority) m.push(PRIO[t.priority] || "");
+    if (t.time) m.push('<span class="tag">' + esc(t.time) + "</span>");
+    if (t.energy) m.push('<span class="tag">' + esc(t.energy) + "</span>");
+    if (t.due) m.push('<span class="' + (t.due < today ? "due" : t.due <= soon ? "duesoon" : "") + '">due ' + esc(t.due) + (t.due < today ? " ⚠️" : "") + "</span>");
+    if (t.defer) m.push('<span class="tag">defer ' + esc(t.defer) + "</span>");
+    if (t.follow_up) m.push('<span class="' + (t.follow_up < today ? "due" : "") + '">follow up ' + esc(t.follow_up) + "</span>");
+    if (t.ai_delegable) m.push("🤖");
+    if (t.project && showBucket !== "projects") m.push('<span class="tag">' + esc(t.project) + "</span>");
+    if (showBucket) m.push('<span class="tag">' + esc(t.bucket) + "</span>");
+    const cls = (t.due && t.due < today) || (t.follow_up && t.follow_up < today) ? ' class="overdue"' : "";
+    const step = t.next_step ? '<span class="meta">→ ' + esc(t.next_step) + "</span>" : "";
+    return "<li" + cls + '><span class="desc">' + esc(t.description) + '</span><span class="meta">' + m.join(" ") + "</span>" + step + "</li>";
+  }
+  const list = (ts, opt) => ts.length ? '<ul class="tasks">' + ts.map(t => taskLine(t, opt)).join("") + "</ul>" : '<div class="empty">Nothing here.</div>';
+
+  // ---- header + banner + buttons
+  let html = "<header><h1>GMTD — " + esc(D.user) + '</h1><span class="date">' + new Date(D.generated).toDateString() + "</span></header>";
+  if (D.current_number_one) html += '<div class="lens">🎯 Current #1: <b>' + esc(D.current_number_one) + "</b></div>";
+  if (D.violations && D.violations.length) html += '<div class="banner">⚠️ ' + D.violations.length + " rule issue(s) — " + esc(D.violations[0].detail) + (D.violations.length > 1 ? " (+" + (D.violations.length - 1) + " more)" : "") + "</div>";
+  html += '<div class="actions" id="btns"></div><div class="grid">';
+
+  // ---- due strip (overdue + due within 2 days)
+  const due = open.filter(t => t.due && t.due <= soon).sort((a, b) => a.due < b.due ? -1 : 1);
+  if (due.length) html += '<div class="card full"><h2>⏰ Due & overdue <span class="count">' + due.length + "</span></h2>" + list(due, "due") + "</div>";
+
+  // ---- resume + focus
+  if (D.resume_here && D.resume_here.length) html += '<div class="card"><h2>📌 Resume here</h2><div class="resume">' + D.resume_here.map(l => "<p>" + md(l) + "</p>").join("") + "</div></div>";
+  const focus = by("focus");
+  html += '<div class="card"><h2>🎯 Focus <span class="count">' + focus.length + "/" + (D.focus_max || 5) + "</span></h2>" + list(focus) + "</div>";
+
+  // ---- next (with filter chips)
+  const next = by("next").concat(open.filter(t => t.bucket === "scheduled" && t.defer && t.defer <= today));
+  html += '<div class="card full"><h2>⚡ Next <span class="count">' + next.length + "</span></h2>"
+    + '<div class="chips"><span>I have:</span>'
+    + ["5 min", "15 min", "30 min", "60+ min"].map(c => '<div class="chip" data-k="time" data-v="' + c + '">' + c + "</div>").join("")
+    + "<span>·</span>"
+    + ["low", "medium", "high"].map(c => '<div class="chip" data-k="energy" data-v="' + c + '">' + c + "</div>").join("")
+    + '</div><div id="nextList">' + list(next) + "</div></div>";
+
+  // ---- waiting / scheduled
+  const wait = by("waiting");
+  html += '<div class="card"><h2>👥 Waiting on <span class="count">' + wait.length + "</span></h2>" + list(wait) + "</div>";
+  const sched = by("scheduled").filter(t => !t.defer || t.defer > today);
+  html += '<div class="card"><h2>📅 Scheduled <span class="count">' + sched.length + "</span></h2>" + list(sched) + "</div>";
+
+  // ---- projects
+  const projs = (D.projects || []).filter(p => p.tasks.some(t => t.status === "open"));
+  html += '<div class="card full"><h2>📁 Projects <span class="count">' + projs.length + "</span></h2>"
+    + (projs.length ? projs.map(p => "<details" + (projs.length <= 3 ? " open" : "") + "><summary><strong>" + esc(p.name) + "</strong>"
+      + (p.goal ? " — " + esc(p.goal) : "") + (p.has_next_marker ? "" : " ⚠️ no next action") + "</summary>"
+      + list(p.tasks.filter(t => t.status === "open")) + "</details>").join("") : '<div class="empty">No active projects.</div>') + "</div>";
+
+  // ---- later & someday, lists, stats
+  const later = by("later"), someday = by("someday");
+  html += '<div class="card"><h2>⏳ Later <span class="count">' + later.length + "</span></h2><details><summary>Show all</summary>" + list(later) + "</details></div>";
+  html += '<div class="card"><h2>💤 Someday <span class="count">' + someday.length + "</span></h2><details><summary>Show all</summary>" + list(someday) + "</details></div>";
+  if (D.lists_summary && D.lists_summary.length) html += '<div class="card"><h2>🔖 Reference lists</h2><ul class="tasks">'
+    + D.lists_summary.map(l => '<li><span class="desc">' + esc(l.section) + ' <span class="meta">' + l.count + " item(s)</span></span></li>").join("") + "</ul></div>";
+  const st = D.stats || {};
+  html += '<div class="card"><h2>📊 This week</h2><div class="stats">'
+    + '<div class="stat"><b>' + (st.done_count != null ? st.done_count : "–") + "</b><span>done (last " + (st.window_days || 7) + " days)</span></div>"
+    + '<div class="stat"><b>' + by("inbox").length + "</b><span>in inbox</span></div>"
+    + '<div class="stat"><b>' + (D.stale ? D.stale.length : 0) + "</b><span>stale items</span></div>"
+    + "</div></div>";
+
+  html += "</div><footer>Generated " + esc(D.generated) + " · GMTD — your data, your files.</footer>";
+  app.innerHTML = html;
+
+  // ---- buttons (Claude artifact only)
+  if (typeof sendPrompt === "function") {
+    const btns = [["What's next?", "What's next?"], ["Plan my day", "Plan my day"], ["Process inbox", "Process my inbox"], ["Wrap up", "Wrap up"], ["Weekly review", "Start my weekly review"]];
+    document.getElementById("btns").innerHTML = btns.map((b, i) => '<button data-p="' + esc(b[1]) + '">' + esc(b[0]) + "</button>").join("");
+    document.querySelectorAll("#btns button").forEach(b => b.addEventListener("click", () => sendPrompt(b.dataset.p)));
+  }
+
+  // ---- filter chips
+  const active = {};
+  const fits = { "5 min": ["2min", "5min"], "15 min": ["2min", "5min", "15min"], "30 min": ["2min", "5min", "15min", "30min"], "60+ min": ["2min", "5min", "15min", "30min", "60min+"] };
+  const energyFits = { low: ["low"], medium: ["low", "medium"], high: ["low", "medium", "high"] };
+  document.querySelectorAll(".chip").forEach(ch => ch.addEventListener("click", () => {
+    const k = ch.dataset.k;
+    document.querySelectorAll('.chip[data-k="' + k + '"]').forEach(o => { if (o !== ch) o.classList.remove("on"); });
+    ch.classList.toggle("on");
+    active[k] = ch.classList.contains("on") ? ch.dataset.v : null;
+    const f = next.filter(t =>
+      (!active.time || !t.time || fits[active.time].includes(t.time)) &&
+      (!active.energy || !t.energy || energyFits[active.energy].includes(t.energy)));
+    document.getElementById("nextList").innerHTML = list(f);
+  }));
+})();
+</script>
+</body>
+</html>
