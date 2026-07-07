@@ -22,6 +22,7 @@ GMTD is inspired by David Allen's *Getting Things Done®* (the book is worth rea
 - **Horizons of focus:** actions serve projects, projects serve areas and goals. GMTD's `goals.md` holds the upper horizons; the "Current #1" there is the lens every priority suggestion cites.
 - **Natural planning (projects):** purpose → outcome vision → brainstorm → organize → next action. GMTD uses the light version at project creation: outcome ("done means…"), why it matters, first action.
 - **Mind sweep:** the big initial capture-everything session. GMTD runs one during setup so the system starts full and trustworthy.
+- **Optional lenses:** GMTD layers other productivity frameworks on top of GTD as opt-in planning styles — daily shapes (Big 3, 1-3-5, Eat the Frog), Eisenhower triage, focus sessions, time-blocking. See `frameworks.md`. GTD remains the backbone; the lenses only shape how the day is framed.
 
 ## The AI's role (what makes GMTD different)
 

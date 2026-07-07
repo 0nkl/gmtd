@@ -1,7 +1,7 @@
 # GMTD Config — {{NAME}}
 
 <!-- Written by gmtd-setup. Hand-editable. Skills read this before doing anything. -->
-<!-- config_version: 1 -->
+<!-- config_version: 2 -->
 
 ## Profile
 - name: {{NAME}}
@@ -42,6 +42,10 @@
 ## Priorities
 - priority_lens: goals.md → Current #1
 - focus_max: 5
+
+## Planning style (see plugin reference/frameworks.md)
+- daily_shape: gtd              # gtd | big3 | 1-3-5 | frog — shapes the briefing & "plan my day"
+- focus_sessions: on            # "start a focus session on X" — one task, one goal, no switching
 
 ## Review
 - weekly_review_phases: [inbox-sweep, projects, buckets, someday-scan]
