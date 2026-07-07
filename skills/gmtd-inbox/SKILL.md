@@ -12,7 +12,7 @@ description: >
 
 # GMTD Inbox — Capture → Clarify → Organize
 
-Read first: user `config.md`, then `${CLAUDE_PLUGIN_ROOT}/reference/schema.md`. If no config.md exists, suggest running gmtd-setup.
+Read first: user `config.md`, then `${CLAUDE_PLUGIN_ROOT}/reference/schema.md`. Interaction style: `${CLAUDE_PLUGIN_ROOT}/reference/interaction.md`. If no config.md exists, suggest running gmtd-setup.
 
 ## Step 1 — Gather captures (detect mode from context)
 
@@ -36,13 +36,15 @@ For every capture, walk this tree. Always suggest an answer with a one-line reas
 5. **Someone else's move?** → Waiting On, with who + follow-up date.
 6. **Otherwise:** single action → bucket (Next / Scheduled+defer / Later / Someday per schema.md) + tags: time, energy, priority (cite goals.md Current #1 in your reasoning), added date. Tasks ≥ 30min MUST get a `→ next step` (2–5 min, starts with a verb).
 
+**Deadline check (every actionable item):** if the capture implies a real deadline ("by Friday", "before the call", "tax deadline") → add `[due:YYYY-MM-DD]`. Ask only when a deadline is implied but unclear ("you said 'soon' — is there an actual date this must be done by?"). Never invent one: `due` is for hard deadlines, priority covers everything soft. `defer` = when it starts appearing; `due` = when it must be finished.
+
 ## Step 3 — Batch triage (default for 3+ items)
 
 Present ALL classified items in one compact table: capture → proposed destination + tags + next step. The user corrects only what's wrong (use interactive option questions for ambiguous ones). One confirmation → write everything in one pass. Process one-by-one only when items are few or genuinely ambiguous.
 
 ## Step 4 — Write and close
 
-- Write confirmed entries to tasks.md / lists.md (small, precise edits — never rewrite whole sections).
+- **Batch writes: `gmtd.py backup` first.** Then write confirmed entries to tasks.md / lists.md (small, precise edits — never rewrite whole sections). Single captures don't need the backup.
 - Update state timestamps (`gmtd.py state set`).
 - Append a log entry: `gmtd.py log --op inbox --subject "..." --bullet "N captures → X tasks, Y list items, Z done immediately"`.
 - Offer a dashboard refresh if many items changed.
@@ -55,4 +57,4 @@ Present ALL classified items in one compact table: capture → proposed destinat
 - Reference items are NOT tasks — no time/energy tags in lists.md.
 - Respect `communication_style` from config.
 
-*Other GMTD skills: gmtd-now (what's next/briefing), gmtd-done (completions), gmtd-review (weekly review), gmtd-setup (settings/help).*
+*Other GMTD skills: gmtd-now (what's next/plan my day/briefing), gmtd-done (completions), gmtd-review (weekly review), gmtd-setup (settings/help).*

@@ -3,13 +3,14 @@ name: gmtd-done
 description: >
   Mark work complete and close sessions cleanly. Trigger on: "I finished X", "mark X
   done", "X is done", "I did X", "wrap up", "session done", "close out", "I'm done for
-  today", "end session", "sync my tracking channel", "log what I did", "I worked on X
-  for an hour".
+  today", "end my day", "daily shutdown", "shutdown", "end session", "sync my tracking
+  channel", "log what I did", "I worked on X for an hour", "focus session done",
+  "I'm back" (after a focus session).
 ---
 
-# GMTD Done — Completion · Session Wrap · Tracking
+# GMTD Done — Completion · Session Wrap · Daily Shutdown · Tracking
 
-Read first: user `config.md`, `${CLAUDE_PLUGIN_ROOT}/reference/schema.md`. Three entry modes:
+Read first: user `config.md`, `${CLAUDE_PLUGIN_ROOT}/reference/schema.md`. Interaction style: `${CLAUDE_PLUGIN_ROOT}/reference/interaction.md`. Entry modes:
 
 ## Mode A — "I finished X" (anytime, no ceremony)
 
@@ -18,6 +19,8 @@ Read first: user `config.md`, `${CLAUDE_PLUGIN_ROOT}/reference/schema.md`. Three
 3. **Keep the project moving:** if it was a project's [NEXT], promote the project's next sub-task — move it to Next with full metadata (ask time/energy if unknown) and the [NEXT] marker. If the project has no remaining tasks: "Is [project] complete, or what's the next action?"
 4. If `time_logging: on`, append a `↳` time log (infer duration from what the user said; state your inference, e.g. "~30 min ending now — right?").
 5. No confirmation needed to mark done — the user said it's done.
+
+**Focus-session return** ("done", "I'm back" after gmtd-now Mode D): same steps; if the session goal wasn't fully reached, log progress (`↳` line) instead of completing, and update the task's `→ next step` to wherever they stopped. Then offer exactly one thing: break, or next session.
 
 ## Mode B — "Wrap up" (session close, 2–3 minutes max)
 
@@ -32,6 +35,12 @@ Read first: user `config.md`, `${CLAUDE_PLUGIN_ROOT}/reference/schema.md`. Three
 4. Log via `gmtd.py log --op done` ONLY if the session produced meaningful progress (decisions, deliverables, completed priorities) — skip for pure triage. If `wiki_integration: on`, use the user's wiki log conventions.
 5. Handoff in one sentence. No walls of text.
 
+**Daily shutdown** ("I'm done for today", "end my day"): Mode B plus a clean end-of-day close —
+- One-line honest tally: what got done today (from `gmtd.py stats --days 1` if time_logging, else from this session).
+- Anything due tomorrow or overdue → surface it now, not at 9am.
+- Tee up tomorrow: per `daily_shape` (frog → "tomorrow's frog is X"; big3 → propose tomorrow's three; else → the single first move). Goes into the Resume Here block.
+- End with a shutdown line ("Day closed — nothing on your mind belongs there overnight."). No new decisions after this point.
+
 ## Mode C — "Sync tracking" (channel users)
 
 1. Read the `~~chat` tracking channel since `gmtd.py state get tracking_synced` (use `gmtd.py epoch` for the cutoff). Nothing new → say so, done.
@@ -43,6 +52,7 @@ Read first: user `config.md`, `${CLAUDE_PLUGIN_ROOT}/reference/schema.md`. Three
 
 - Completions must never be lost — when in doubt, record it.
 - Every project must keep a live [NEXT] after processing (run `gmtd.py validate`; fix or flag before closing).
+- Batch completions (3+ tasks changing at once) → `gmtd.py backup` before writing.
 - Fast. This skill runs between real work; keep responses to a few lines.
 
-*Other GMTD skills: gmtd-inbox (captures→tasks), gmtd-now (what's next/briefing), gmtd-review (reviews), gmtd-setup (settings/help).*
+*Other GMTD skills: gmtd-inbox (captures→tasks), gmtd-now (what's next/plan my day/briefing), gmtd-review (reviews), gmtd-setup (settings/help).*
